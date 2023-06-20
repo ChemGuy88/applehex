@@ -10,8 +10,10 @@ from xml.etree.ElementTree import ElementTree
 from pathlib import Path
 # Third-party packages
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from IPython import get_ipython
+from matplotlib.cm import get_cmap
 from sklearn.cluster import KMeans
 
 DATA_FILE_PATH = Path("data/input/apple_health_export/export.xml")
@@ -83,6 +85,91 @@ def timestampsToCoordinates(times: pd.Series) -> pd.DataFrame:
     return coordinates
 
 
+def clusterCoordinates(numClusters: int, coordinates: pd.DataFrame) -> KMeans:
+    """
+    """
+    assert numClusters <= 10, "Can only handle up to 10 clusters."  # Because we can only plot up to 10 different colors.
+    kmeans = KMeans(n_clusters=numClusters,
+                    n_init=1)
+    kmeans = kmeans.fit(coordinates.values)
+
+    return kmeans
+
+
+def plotClusteredCoordinates(model: KMeans, coordinates: pd.DataFrame):
+    """
+    Visualization of the clustered coordinates.
+    """
+    figure = plt.figure()
+    xc = coordinates["x"].to_list()
+    yc = coordinates["y"].to_list()
+    plt.scatter(xc, yc, c=kmeans.labels_, marker=".", cmap='Dark2', label=["a", "b"])
+    centroids = kmeans.cluster_centers_
+    plt.scatter(centroids[:, 0],
+                centroids[:, 1],
+                marker="x",
+                s=169,
+                linewidths=3,
+                color="b",
+                zorder=10)
+    plt.title("Title")
+    plt.xlabel("Xlabel")
+    plt.ylabel("Ylabel")
+    plt.legend(["1", "2"])
+    return figure
+
+
+def getAngle(xycoordinates: tuple, test=False) -> float:
+    """
+    Get the angle from a right triangle defined by x and y-coordinates.
+    """
+    xycoord = (xycoordinates[0], xycoordinates[1])
+    xc = xycoord[0]
+    yc = xycoord[1]
+    # quadrant = getQuadrant(xc, yc)
+    if xc < 0:
+        if yc < 0:
+            quadrant = 3
+        elif yc > 0:
+            quadrant = 2
+    elif xc >= 0:
+        if yc < 0:
+            quadrant = 4
+        elif yc >= 0:
+            quadrant = 1
+    vector = np.array([xc, yc])
+    norm = np.linalg.norm(vector)  # hypoteneuse
+    angle0 = math.degrees(math.asin(yc / norm))
+    angle1 = math.degrees(math.acos(xc / norm))
+    if quadrant in [1, 2]:
+        angle = angle1
+    elif quadrant in [3, 4]:
+        angle = 360 - angle1
+    if test:
+        return (angle0, angle1, quadrant, angle)
+    else:
+        return angle
+
+
+def angle2circle(theta: float, radius: int = 1) -> tuple:
+    """
+    Get the coordinates of the point on a circle with radius r and angle theta in degrees.
+    """
+    radians = math.radians(theta)
+    xc = math.cos(radians) * radius
+    yc = math.sin(radians) * radius
+    return xc, yc
+
+
+def projectToCircle(xycoord: tuple) -> tuple:
+    """
+    Projects an x,y-coordinate to a circle
+    """
+    theta = getAngle(xycoordinates=xycoord)
+    xyproj = angle2circle(theta)
+    return xyproj
+
+
 # Parse tree
 tree = ET.parse(DATA_FILE_PATH)
 root = tree.getroot()
@@ -108,30 +195,53 @@ times = pd.to_datetime(dfSBP["startDate"])
 coordinates = timestampsToCoordinates(times=times)
 
 # Cluster records by time
-NUMBER_OF_MEASUREMENTS_PER_DAY = 2
-kmeans = KMeans(n_clusters=NUMBER_OF_MEASUREMENTS_PER_DAY,
-                n_init=1)
-kmeans = kmeans.fit(coordinates.values)
+kmeans = clusterCoordinates(numClusters=2,
+                            coordinates=coordinates)
 
 # Plot model
-plt.close()
-fig = plt.figure()
-xc = coordinates["x"].to_list()
-yc = coordinates["y"].to_list()
-plt.scatter(xc, yc, c=kmeans.labels_, marker=".", cmap='Dark2')
+plt.close('all')
+figure = plt.figure()
+xc = coordinates["x"]
+yc = coordinates["y"]
+uniqueLabels = sorted(list(set(kmeans.labels_)))
 centroids = kmeans.cluster_centers_
+projectedCentroids = np.array([projectToCircle(centroid) for centroid in centroids])
+labelsDict = {label: (centroid[0], centroid[1]) for centroid, label in zip(centroids, uniqueLabels)}
+caseLabels = kmeans.labels_
+colors = get_cmap("tab10").colors
+for it, (group, centroid) in enumerate(labelsDict.items()):
+    mask = caseLabels == group
+    groupName = group + 1
+    centroidRounded = (np.round(centroid[0], 2), (np.round(centroid[1], 2)))
+    plt.scatter(xc[mask], yc[mask], c=colors[it], marker=".", label=f"Group {groupName}: {centroidRounded}")
 plt.scatter(centroids[:, 0],
             centroids[:, 1],
             marker="x",
             s=169,
             linewidths=3,
             color="b",
-            zorder=10)
+            zorder=10,
+            label="centroids")
+plt.scatter(projectedCentroids[:, 0],
+            projectedCentroids[:, 1],
+            marker="x",
+            s=169,
+            linewidths=3,
+            color="r",
+            zorder=10,
+            label="Record Mean")
+plt.title("24-hour distribution of records")
+plt.xlabel("x-coordinate")
+plt.ylabel("y-coordinate")
+plt.legend(loc="best")
+# figure = plotClusteredCoordinates(model=kmeans,
+#                                   coordinates=coordinates)
 
 # TODO Convert centroids to time
 # - Project centroids to unit circle
 # - - Get angle
 # - - From angle compute x and y coordinates
 # - Convert x, y coordinate to time
+# TODO Fix projection. Use: https://math.stackexchange.com/a/1744368/506275
 
 # TODO Calculate radian offset
