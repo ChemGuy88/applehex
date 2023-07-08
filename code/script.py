@@ -229,7 +229,19 @@ plt.scatter(projectedCentroids[:, 0],
             linewidths=3,
             color="r",
             zorder=10,
-            label="Record Mean")
+            label="Record Mean")  # "Record Mean" is actually the projected centroid.
+# Add line from center to circle, for troubleshooting.
+origin = np.array([[0, 0] for _ in projectedCentroids])
+plt.quiver(*origin,
+           projectedCentroids[:, 0],
+           projectedCentroids[:, 1],
+           color="k",
+           angles='xy',
+           scale_units='xy',
+           scale=1,
+           width=0.0035,
+           label="Projected Centroid Vector")
+plt.plot()
 plt.title("24-hour distribution of records")
 plt.xlabel("x-coordinate")
 plt.ylabel("y-coordinate")
@@ -239,9 +251,6 @@ plt.legend(loc="best")
 
 # TODO Convert centroids to time
 # - Project centroids to unit circle
-# - - Get angle
-# - - From angle compute x and y coordinates
 # - Convert x, y coordinate to time
-# TODO Fix projection. Use: https://math.stackexchange.com/a/1744368/506275
 
 # TODO Calculate radian offset
