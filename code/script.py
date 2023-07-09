@@ -22,6 +22,14 @@ DATA_FILE_PATH = Path("data/input/apple_health_export/export.xml")
 get_ipython().run_line_magic('matplotlib', "")
 
 
+def parseExportFile(exportFilePath: Path) -> ElementTree:
+    """
+    Loads the Apple Health export Zip file and returns a parsed XML ElementTree object.
+    """
+    tree = ET.parse(exportFilePath)  # Parse tree
+    return tree
+
+
 def getRecordTypes(tree: ElementTree) -> set:
     """
     """
@@ -170,9 +178,8 @@ def projectToCircle(xycoord: tuple) -> tuple:
     return xyproj
 
 
-# Parse tree
-tree = ET.parse(DATA_FILE_PATH)
-root = tree.getroot()
+# Load exported Apple Health data
+tree = parseExportFile(DATA_FILE_PATH)
 
 # Get record types
 recordTypes = getRecordTypes(tree)
