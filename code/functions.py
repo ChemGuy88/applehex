@@ -15,9 +15,6 @@ import pandas as pd
 from IPython import get_ipython
 from sklearn.cluster import KMeans
 
-# Settings: Interactive Pyplot
-ipythonObj = get_ipython().run_line_magic('matplotlib', "")
-
 
 def parseExportFile(exportFilePath: Path) -> ElementTree:
     """
@@ -101,6 +98,17 @@ def clusterCoordinates(numClusters: int, coordinates: pd.DataFrame) -> KMeans:
     return kmeans
 
 
+def time2ordinal(pyTimeObj: datetime.time) -> int:
+    """
+    Converts a python `datetime.time`-type object into a microseconds-based integer ordinal.
+    """
+    hours = pyTimeObj.hour
+    minutes = pyTimeObj.minute + hours * 60
+    seconds = pyTimeObj.second + minutes * 60
+    microseconds = pyTimeObj.microsecond + seconds * 10**6
+    return microseconds
+
+
 def plotClusteredCoordinates(model: KMeans, coordinates: pd.DataFrame):
     """
     Visualization of the clustered coordinates.
@@ -173,3 +181,8 @@ def projectToCircle(xycoord: tuple) -> tuple:
     theta = getAngle(xycoordinates=xycoord)
     xyproj = angle2circle(theta)
     return xyproj
+
+
+if __name__ == "__main__":
+    # Settings: Interactive Pyplot
+    ipythonObj = get_ipython().run_line_magic('matplotlib', "")
